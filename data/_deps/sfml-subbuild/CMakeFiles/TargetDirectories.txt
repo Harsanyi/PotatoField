@@ -1,3 +1,0 @@
-D:/Projects/Starfield/data/_deps/sfml-subbuild/CMakeFiles/sfml-populate.dir
-D:/Projects/Starfield/data/_deps/sfml-subbuild/CMakeFiles/ALL_BUILD.dir
-D:/Projects/Starfield/data/_deps/sfml-subbuild/CMakeFiles/ZERO_CHECK.dir
