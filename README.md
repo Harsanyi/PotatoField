@@ -4,7 +4,7 @@ A small space shooter and my first C++ game, built to learn rendering math and g
 
 [![PotatoField gameplay](docs/images/gameplay.jpg)](https://www.youtube.com/watch?v=RhFBIFvU53A)
 
-[Gameplay video](https://www.youtube.com/watch?v=RhFBIFvU53A) · [Original Windows release (V1.0)](https://github.com/Harsanyi/PotatoField/releases/tag/V1.0)
+[Download Windows x64 (V1.1)](https://github.com/Harsanyi/PotatoField/releases/download/V1.1/PotatoField-1.1.0-Windows-x64.zip) · [Release notes](https://github.com/Harsanyi/PotatoField/releases/tag/V1.1) · [Gameplay video](https://www.youtube.com/watch?v=RhFBIFvU53A)
 
 ## Rendering a 3D space with sprites
 
@@ -70,7 +70,7 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 
 This instruments the project's runtime code; SFML and its external binaries remain uninstrumented. MSVC's sanitizer checks memory access errors, not memory leaks. The sanitizer runtime must be on `PATH` (provided by the developer shell).
 
-The ZIP package includes the executable, assets, OpenAL DLL and third-party notices/source archive. The original **V1.0** release is preserved as a historical build.
+The ZIP package includes the executable, assets, OpenAL DLL and third-party notices/source archive. The original [V1.0 release](https://github.com/Harsanyi/PotatoField/releases/tag/V1.0) is preserved as a historical build.
 
 ## Scope and limitations
 
