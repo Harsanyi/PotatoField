@@ -1,7 +1,7 @@
 #pragma once
 #include "Label.h"
 #include "Event.h"
-#include "SFML/Audio.hpp"
+#include <SFML/Audio.hpp>
 
 class Button
 {
@@ -17,7 +17,7 @@ class Button
 	sf::SoundBuffer clickBuffer;
 	sf::Sound hoverSound;
 	sf::Sound clickSound;
-	
+
 	void updatePositions();
 
 public:
@@ -35,4 +35,3 @@ public:
 	void setSize(const sf::Vector2f& size);
 	void setFontSize(const float& charSize);
 };
-

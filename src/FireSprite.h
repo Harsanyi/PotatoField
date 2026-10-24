@@ -1,22 +1,13 @@
 #pragma once
-#include "graphics.h"
-#include "chrono"
-
-using namespace std::chrono;
+#include "Graphics.h"
 
 class FireSprite : public Graphics
 {
-	float lifeTime = 1;
-	steady_clock::time_point born;
-	float maxSize = 100;
-
+    float lifetime = 1;
+    float age = 0;
+    float maxSize = 100;
 public:
-	FireSprite();
-
-	inline virtual glm::vec4 getUVs() const override{
-		return { 0.03,0.864,0.077,0.91 };
-	};
-
-	void update() override;
+    FireSprite();
+    glm::vec4 getUVs() const override { return {0.03f, 0.864f, 0.077f, 0.91f}; }
+    void update() override;
 };
-

@@ -1,66 +1,61 @@
 #include "Star.h"
-#include "config.h"
+#include "Assets.h"
 #include "Game.h"
-#include "Texture.h"
-#include "SFML/Graphics.hpp"
-#include <Player.h>
-#include "Log.h"
+#include "Player.h"
 
 std::vector<Star> Star::stars;
-sf::VertexArray Star::verticles;
-Texture* Star::texture;
-sf::RenderStates* Star::state;
+sf::VertexArray Star::vertices{sf::Quads};
+std::unique_ptr<Texture> Star::texture;
+sf::RenderStates Star::state;
 
-const sf::Vector2f bl = { -0.5,-0.5 };
-const sf::Vector2f tl = { 0.5, -0.5 };
-const sf::Vector2f br = { 0.5,0.5 };
-const sf::Vector2f tr = { -0.5,0.5 };
-
-void Star::init() {
-	texture = new Texture("img/star.png");
-	state = new sf::RenderStates();
-	state->transform.translate({ Config::SCREEN_WIDTH * 0.5,Config::SCREEN_HEIGHT * 0.5 });
-	state->texture = texture;
-}
-
-void Star::create(const int& count)
+void Star::init()
 {
-    stars.resize(count);
-    for (int i = 0; i < stars.size(); i++) {
-        stars[i] = Star();
-    }
-
-	verticles = sf::VertexArray(sf::PrimitiveType::Quads, Config::STAR_COUNT * 4);
-	int s;
-	auto texSize = texture->getSize();
-	for (int i = 0; i < stars.size(); i++) {
-		s = i * 4;
-		verticles[s].texCoords = { 0,0 };
-		verticles[s+1].texCoords = { (float)texSize.x,0 };
-		verticles[s+2].texCoords = { (float)texSize.x,(float)texSize.y };
-		verticles[s+3].texCoords = { 0,(float)texSize.y };
-	}
+    texture = std::make_unique<Texture>(Assets::file("img/star.png"));
+    state = sf::RenderStates{};
+    state.texture = texture.get();
+    state.transform.translate(Config::SCREEN_WIDTH * 0.5f, Config::SCREEN_HEIGHT * 0.5f);
 }
-
-void Star::draw() {
-	glm::vec3 locPos, scrPos;
-	sf::Vector2f center;
-	int i = 0;
-	for (int s = 0; s < stars.size(); s++) {
-		locPos = glm::inverse(Player::main->rotation) * stars[s].rot * glm::vec3(0, 0, 10000);
-		scrPos = Player::main->local2ScreenPos(locPos);
-		center = { scrPos.x, scrPos.y };
-		i = s * 4;
-		verticles[i].position = center + bl * stars[s].size;
-		verticles[i + 1].position = center + tl * stars[s].size;
-		verticles[i + 2].position = center + br * stars[s].size;
-		verticles[i + 3].position = center + tr * stars[s].size;
-
-		verticles[i].color = stars[s].color;
-		verticles[i+1].color = stars[s].color;
-		verticles[i+2].color = stars[s].color;
-		verticles[i+3].color = stars[s].color;
-	}
-
-	Game::window->draw(verticles, *state);	
+void Star::create(int count)
+{
+    stars.clear();
+    stars.resize(static_cast<std::size_t>(count));
+    vertices.resize(stars.size() * 4);
+    const auto size = texture->getSize();
+    for (std::size_t i = 0; i < stars.size(); ++i)
+    {
+        vertices[i * 4].texCoords = {0, 0};
+        vertices[i * 4 + 1].texCoords = {float(size.x), 0};
+        vertices[i * 4 + 2].texCoords = {float(size.x), float(size.y)};
+        vertices[i * 4 + 3].texCoords = {0, float(size.y)};
+    }
+}
+void Star::draw()
+{
+    constexpr glm::vec2 corners[]{{-0.5f, -0.5f}, {0.5f, -0.5f}, {0.5f, 0.5f}, {-0.5f, 0.5f}};
+    const auto inverseCamera = glm::inverse(Player::main->rotation);
+    for (std::size_t i = 0; i < stars.size(); ++i)
+    {
+        const auto local = inverseCamera * stars[i].rotation * glm::vec3(0, 0, 10000);
+        if (local.z <= 1.0f)
+        {
+            for (std::size_t corner = 0; corner < 4; ++corner) vertices[i * 4 + corner].color = sf::Color::Transparent;
+            continue;
+        }
+        const auto projected = Player::main->localToScreenPosition(local);
+        for (std::size_t corner = 0; corner < 4; ++corner)
+        {
+            vertices[i * 4 + corner].position = {projected.x + corners[corner].x * stars[i].size,
+                                                projected.y + corners[corner].y * stars[i].size};
+            vertices[i * 4 + corner].color = stars[i].color;
+        }
+    }
+    // A second shared vertex array renders the distant, rotation-only starfield.
+    Game::window->draw(vertices, state);
+}
+void Star::shutdown()
+{
+    stars.clear();
+    vertices.clear();
+    state.texture = nullptr;
+    texture.reset();
 }

@@ -8,9 +8,9 @@ public:
 	static constexpr float POTATO_SIZE = 256;
 	static constexpr int POTATO_COUNT = 1000;
 	static constexpr float CAMERA_MOVE_SPEED = 1000;
-	static constexpr float CAMERA_ROTATION_SPEED = 30;
+	static constexpr float MOUSE_SENSITIVITY = 0.002083333f;
 	static constexpr float FIELD_SIZE = 10000;
-	static constexpr float CAMERA_H_FOV = 60;
+	static constexpr float CAMERA_PROJECTION_ANGLE = 60;
 	static constexpr float DEPTH_SCALE = 100;
 	static constexpr float POTATO_ANGULAR_VELOCITY = 100;
 	static constexpr float POTATO_SIZE_VARIANCE = 1.5;
@@ -18,14 +18,13 @@ public:
 	static constexpr int LOG_FONT_SIZE = 12;
 
 	static constexpr float HALF_FIELD_SIZE = FIELD_SIZE * 0.5;
-	static constexpr float DELTA_TIME = 1. / FRAMERATE;
 
 	static constexpr float ENEMY_SPEED = 750;
 	static constexpr float ENEMY_SIZE = 200;
 	static constexpr float ENEMY_SHOOTING_FREQ = 2;
 
 	static constexpr float BULLET_SIZE = 100;
-	static constexpr float BULLET_SPEED = 2000; 
+	static constexpr float BULLET_SPEED = 2000;
 	static constexpr float BULLET_LIFETIME = 0.5;
 
 	static constexpr float LIGHT_FALL_RATE = 5;
@@ -39,4 +38,3 @@ public:
 
 	static constexpr float PILL_SPAWN_RATE = 0.5;
 };
-

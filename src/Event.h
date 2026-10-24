@@ -1,53 +1,57 @@
 #pragma once
+#include <algorithm>
+#include <cstdint>
 #include <functional>
+#include <limits>
+#include <memory>
+#include <stdexcept>
+#include <utility>
 #include <vector>
-#include "Utils.h"
-#include "iostream"
 
 template<typename... Args>
 class Event
 {
 public:
-	inline void subscribe(std::function<void(Args...)> action) {
-		actions.push_back(action);
-	};
+    using Id = uint64_t;
 
-	inline void UnSubscribe(std::function<void(Args...)> action) {
-		std::cout << "Try unsubscrybe " << std::endl;
-		auto iterator = std::find_if(
-			actions.begin(),
-			actions.end(),
-			[&action](const std::function<void(Args...)>& func) {
-				return action.target<void(Args...)>() == func.target<void(Args...)>();
-			}
-			);
-		
-		if (iterator != actions.end()) {
-			std::cout << "function found!" << std::endl;
-			actions.erase(iterator);
-			return;
-		}
+    Id Subscribe(std::function<void(Args...)> action)
+    {
+        if (!action) throw std::invalid_argument("Cannot subscribe an empty callback");
+        if (nextId == std::numeric_limits<Id>::max()) throw std::overflow_error("Subscription ID exhausted");
+        const Id id = nextId++;
+        actions.push_back({id, std::make_shared<std::function<void(Args...)>>(std::move(action))});
+        return id;
+    }
 
-		std::cout << "function NOT found!" << std::endl;
-	};
+    void Unsubscribe(Id id)
+    {
+        actions.erase(std::remove_if(actions.begin(), actions.end(),
+            [id](const Slot& slot) { return slot.id == id; }), actions.end());
+    }
 
-	inline void Invoke(Args... args) {
-		for (auto& action : actions) {
-			if (action) {
-				try {
-					action(args...);
-				}
-				catch (std::runtime_error& err) {
-					std::cout << "Error: " << err.what() << std::endl;
-				}
-			}
-		}
-	};
+    void Invoke(Args... args)
+    {
+        // Snapshot IDs, not iterators: handlers may unsubscribe, clear, or add handlers during dispatch.
+        std::vector<Id> ids;
+        ids.reserve(actions.size());
+        for (const auto& slot : actions) ids.push_back(slot.id);
+        for (Id id : ids)
+        {
+            const auto found = std::find_if(actions.begin(), actions.end(),
+                [id](const Slot& slot) { return slot.id == id; });
+            if (found != actions.end())
+            {
+                auto callback = found->action;
+                (*callback)(args...);
+            }
+        }
+    }
 
-	inline void Clear() {
-		actions.empty();
-	}
+    void Clear() { actions.clear(); }
 
 private:
-	std::vector<std::function<void(Args...)>> actions;
+    // Keep the same callable alive during self-unsubscription, including its mutable captured state.
+    struct Slot { Id id; std::shared_ptr<std::function<void(Args...)>> action; };
+    std::vector<Slot> actions;
+    Id nextId = 1;
 };

@@ -25,7 +25,7 @@ WeaponPair::WeaponPair()
 	right.kickPosition = right.position + sf::Vector2f(60, 45);
 	right.flipHorizontal();
 
-	Player::onShoot.subscribe([this](Player::ShootSide side) {
+	shootSubscription = Player::onShoot.Subscribe([this](Player::ShootSide side) {
 		onPlayerShoot(side);
 		});
 }
@@ -35,3 +35,5 @@ void WeaponPair::draw()
 	left.draw();
 	right.draw();
 }
+
+WeaponPair::~WeaponPair() { Player::onShoot.Unsubscribe(shootSubscription); }

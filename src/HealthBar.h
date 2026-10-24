@@ -3,12 +3,7 @@
 
 class HealthBar
 {
-	Sprite* sprite;
-
+    Sprite sprite{"img/playerLife.png"};
 public:
-	HealthBar();
-	~HealthBar();
-
-	void draw();
+    void draw();
 };
-

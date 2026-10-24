@@ -9,7 +9,7 @@ void GameOverMenu::onClick()
 GameOverMenu::GameOverMenu()
 {
 	button.setText("Game Over");
-	
+
 	sf::Vector2f center = (sf::Vector2f)Game::window->getSize();
 	center.x /= 2;
 	center.y /= 2;
@@ -17,7 +17,7 @@ GameOverMenu::GameOverMenu()
 	button.setColor(sf::Color::Red);
 	button.setSize({400,75});
 	button.setFontSize(50);
-	button.onClick.subscribe([this]() {onClick(); });
+	button.onClick.Subscribe([this]() {onClick(); });
 }
 
 void GameOverMenu::update()

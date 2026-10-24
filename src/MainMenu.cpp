@@ -24,11 +24,11 @@ MainMenu::MainMenu()
 
 	startButton.setPosition({(float)windowSize.x / 2, 275});
 	startButton.setText("Start Game");
-	startButton.onClick.subscribe([this]() {onStartGame(); });
+	startButton.onClick.Subscribe([this]() {onStartGame(); });
 
 	quitButton.setPosition({(float)windowSize.x / 2, 325});
 	quitButton.setText("Quit");
-	quitButton.onClick.subscribe([this]() {onQuit(); });
+	quitButton.onClick.Subscribe([this]() {onQuit(); });
 }
 
 void MainMenu::draw()

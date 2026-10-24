@@ -1,28 +1,26 @@
 #pragma once
-#include "SFML/Graphics.hpp"
+#include <memory>
+#include <SFML/Graphics.hpp>
 #include "Event.h"
-#include "SFML/Graphics.hpp"
 
 class Game
 {
 public:
-	enum State {
-		MENU,
-		GAME,
-		GAME_OVER
-	};
+    enum State { MENU, GAME, GAME_OVER };
+    static std::unique_ptr<sf::RenderWindow> window;
+    static std::unique_ptr<sf::Font> font;
+    static Event<State> onStateChange;
+    static float deltaTime;
 
-	static sf::RenderWindow* window;
-	static Event<State> onStateChange;
-	static sf::Font* font;
-
-	static void init();
-	static State getState();
-	static void setState(const Game::State& newState);
-	static void showCursor(const bool& show);
-	static void handleEvents();
+    static void init(bool hidden = false);
+    static void shutdown();
+    static void beginFrame();
+    static State getState();
+    static void setState(State newState);
+    static void showCursor(bool show);
+    static void handleEvents();
 
 private:
-	static State state;
+    static State state;
+    static sf::Clock frameClock;
 };
-

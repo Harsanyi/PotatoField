@@ -1,30 +1,16 @@
 #pragma once
-#include "SFML/Graphics.hpp"
-#include "config.h"
+#include <vector>
+#include <SFML/Graphics.hpp>
 
 class Log
 {
-	Log();
-
-	class Data {
-	public:
-		sf::String text;
-		int lifeTime = -1;
-
-		Data(const char* text, float sec = 0) {
-			this->text = text;
-			this->lifeTime = sec > 0. ? (int)(sec * Config::FRAMERATE) : -1;
-		};
-	};
-
-	static bool inited;
-	static sf::Text text;
-	static std::vector<Data*> logDatas;
-
-	static void init();
-
-public:	
-	static void draw();
-	static void log(const char* text, float time=0);
+    struct Data { sf::String text; float remaining; };
+    static sf::Text text;
+    static std::vector<Data> entries;
+public:
+    static void update(float deltaTime);
+    static void draw();
+    static void log(const char* message, float seconds = 0);
+    static void clear();
+    static std::size_t count() { return entries.size(); }
 };
-

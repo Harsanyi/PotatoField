@@ -1,23 +1,16 @@
 #include "FireSprite.h"
-#include "Log.h"
+#include "Game.h"
 #include "Random.h"
-#include "chrono"
-
-using namespace std::chrono;
 
 FireSprite::FireSprite()
 {
-	maxSize = Random::getDouble(100,300);
-	lifeTime = Random::getDouble(0.5,1);
-	born = steady_clock::now();
+    maxSize = static_cast<float>(Random::getDouble(100, 300));
+    lifetime = static_cast<float>(Random::getDouble(0.5, 1));
 }
-
 void FireSprite::update()
 {
-	float life =glm::clamp(duration_cast<milliseconds>(steady_clock::now() - born).count() / (lifeTime * 1000.f),0.f,1.f);
-	size = (0.5+life*0.5) * maxSize;
-
-	if (life >= 1) {
-		Destroy();
-	}
+    age += Game::deltaTime;
+    const float fraction = glm::clamp(age / lifetime, 0.0f, 1.0f);
+    size = (0.5f + fraction * 0.5f) * maxSize;
+    if (age >= lifetime) Destroy();
 }

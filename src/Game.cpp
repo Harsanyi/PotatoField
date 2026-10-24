@@ -1,58 +1,62 @@
 #include "Game.h"
-#include "SFML/Graphics.hpp"
-#include "config.h"
-#include "Event.h"
-#include "config.h"
+#include "Assets.h"
+#include "Config.h"
+#include <algorithm>
+#include <stdexcept>
 
-sf::RenderWindow* Game::window;
-sf::Font* Game::font;
-
-Game::State Game::state = Game::MENU;
+std::unique_ptr<sf::RenderWindow> Game::window;
+std::unique_ptr<sf::Font> Game::font;
 Event<Game::State> Game::onStateChange;
+Game::State Game::state = Game::MENU;
+sf::Clock Game::frameClock;
+float Game::deltaTime = 0;
 
-void Game::init()
+void Game::init(bool hidden)
 {
-    window = new sf::RenderWindow({ Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT }, "PotatoField");
+    window = std::make_unique<sf::RenderWindow>(sf::VideoMode(Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT), "PotatoField", sf::Style::Titlebar | sf::Style::Close);
+    window->setVisible(!hidden);
     window->setFramerateLimit(Config::FRAMERATE);
-    font = new sf::Font();
-    font->loadFromFile("roboto.ttf");
-
-    state = Game::GAME_OVER;
-    setState(Game::MENU);
+    font = std::make_unique<sf::Font>();
+    if (!font->loadFromFile(Assets::file("fonts/RobotoMono.ttf"))) throw std::runtime_error("Cannot load Roboto Mono font");
+    state = MENU;
+    deltaTime = 0;
+    frameClock.restart();
 }
 
-Game::State Game::getState()
+void Game::shutdown()
 {
-    return state;
+    onStateChange.Clear();
+    font.reset();
+    if (window) window->close();
+    window.reset();
+    state = MENU;
 }
 
-void Game::setState(const Game::State& newState)
+void Game::beginFrame()
 {
-    if (state == newState)return;
+    deltaTime = std::clamp(frameClock.restart().asSeconds(), 0.0f, 0.05f);
+}
 
-    sf::Mouse::setPosition({Config::SCREEN_WIDTH/2,Config::SCREEN_HEIGHT/2});
-    state = newState;
+Game::State Game::getState() { return state; }
+
+void Game::setState(State next)
+{
+    if (state == next) return;
+    state = next;
+    if (window && window->hasFocus())
+        sf::Mouse::setPosition({Config::SCREEN_WIDTH / 2, Config::SCREEN_HEIGHT / 2}, *window);
     onStateChange.Invoke(state);
 }
 
-void Game::showCursor(const bool& show)
-{
-    window->setMouseCursorVisible(show);
-}
+void Game::showCursor(bool show) { if (window) window->setMouseCursorVisible(show); }
 
 void Game::handleEvents()
 {
-	for (auto event = sf::Event{}; window->pollEvent(event);)
-	{
-		if (event.type == sf::Event::KeyPressed) {
-			if (event.key.code == sf::Keyboard::Escape) {
-				window->close();
-			}
-		}
-
-		if (event.type == sf::Event::Closed)
-		{
-			window->close();
-		}
-	}
+    sf::Event event{};
+    while (window->pollEvent(event))
+    {
+        if (event.type == sf::Event::Closed ||
+            (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape))
+            window->close();
+    }
 }

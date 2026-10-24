@@ -1,29 +1,17 @@
 #pragma once
 #include "Sprite.h"
-#include "chrono"
-#include "Player.h"
-
-using namespace std::chrono;
 
 class WeaponUI
 {
-	const float kickTime = 0.05;
-	const float releaseTime = 0.2;
-
-	Sprite* sprite;
-	steady_clock::time_point lastShoot;
-
+    const float kickTime = 0.05f;
+    const float releaseTime = 0.2f;
+    Sprite sprite{"img/weapon.png"};
+    float sinceShot = 1;
 public:
-	sf::Vector2f position;
-	sf::Vector2f kickPosition;
-
-	WeaponUI();
-	~WeaponUI();
-
-	void draw();
-
-	void shoot();
-
-	void flipHorizontal();
+    sf::Vector2f position;
+    sf::Vector2f kickPosition;
+    WeaponUI();
+    void draw();
+    void shoot();
+    void flipHorizontal();
 };
-

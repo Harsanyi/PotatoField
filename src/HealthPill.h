@@ -1,5 +1,5 @@
 #pragma once
-#include "graphics.h"
+#include "Graphics.h"
 
 class HealthPill : public Graphics
 {
@@ -16,4 +16,3 @@ public:
 
 	bool isActiveCollider() override;
 };
-

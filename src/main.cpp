@@ -1,130 +1,97 @@
-#pragma once
-#define GLM_ENABLE_EXPERIMENTAL
-
-#include <SFML/Graphics.hpp>
-#include "graphics.h"
-#include "Random.h"
-#include "Player.h"
-#include "string"
-#include <iostream>
-#include "Config.h"
-#include "glm/glm.hpp"
-#include "Potato.h"
-#include "Enemy.h"
-#include "Log.h"
-#include "sstream"
-#include "Bullet.h"
-#include "Utils.h"
-#include "glm/gtx/string_cast.hpp"
-#include "Label.h"
-#include "Game.h"
-#include <MainMenu.h>
-#include "GameOverMenu.h"
-#include "Texture.h"
-#include "Sprite.h"
-#include "Star.h"
-#include "PlayerScore.h"
-#include "HealthBar.h"
-#include "WeaponPair.h"
+#include "Assets.h"
 #include "BackgroundMusic.h"
+#include "Enemy.h"
+#include "Explosion.h"
+#include "Game.h"
+#include "GameOverMenu.h"
+#include "Graphics.h"
+#include "HealthBar.h"
+#include "Log.h"
+#include "MainMenu.h"
+#include "Player.h"
+#include "PlayerScore.h"
+#include "Potato.h"
+#include "Star.h"
+#include "WeaponPair.h"
+#include <iostream>
 
-Player* player;
-MainMenu* mainMenu;
-PlayerScore* score;
-GameOverMenu* gameOverMenu;
-HealthBar* healthBar;
-WeaponPair* weapons;
-BackgroundMusic* music;
-
-void onGameStateChange(Game::State state) {
-    Player::main->isControllable = false;
-    Game::showCursor(true);
-
-    switch (state)
-    {
-    case Game::MENU:
-        break;
-    case Game::GAME:
-        Player::main->isControllable = true;
-        Player::main->health = 3;
-        Enemy::create(1);
-        Game::showCursor(false);
-        score->reset();
-        break;
-    case Game::GAME_OVER:
-        Enemy::killInstances();
-        break;
-    default:
-        Log::log("Unhandled game state!");
-        break;
-    }
-}
-
-void onEnemyDestroyed(Enemy* enemy) {
-    if (Game::getState() == Game::GAME) {
-        Enemy::create(2);
-    }
-}
-
-int main()
+int main(int argc, char** argv)
 {
-    Graphics::init();
-    Star::init();
-    Enemy::onDestroy.subscribe(std::function(onEnemyDestroyed));
-
-    player = new Player();
-    player->onDestroy.subscribe(std::function<void()>([]() {
-        Game::setState(Game::GAME_OVER);
-    }));
-
-    Game::onStateChange.subscribe(std::function(onGameStateChange));
-    Game::init();
-
-    Star::create(Config::STAR_COUNT);
-    Potato::create(Config::POTATO_COUNT);
-
-    music = new BackgroundMusic();
-    mainMenu = new MainMenu();
-    gameOverMenu = new GameOverMenu();
-    healthBar = new HealthBar();
-    weapons = new WeaponPair();
-    score = new PlayerScore();
-
-    while (Game::window->isOpen())
+    int result = 0;
+    try
     {
-        try {
-            Game::handleEvents();
-            Game::window->clear();
-            Graphics::updateBehaviours();
-
-            Star::draw();
-            Graphics::draw(); 
-            weapons->draw();
-
-            switch (Game::getState())
+        Assets::initialize(argc ? argv[0] : "");
+        Game::init();
+        Graphics::init();
+        Star::init();
+        Explosion::init();
+        new Player(); // The world registry owns the player and all spawned world entities.
+        {
+            BackgroundMusic music;
+            MainMenu mainMenu;
+            GameOverMenu gameOverMenu;
+            HealthBar healthBar;
+            WeaponPair weapons;
+            PlayerScore score;
+            const auto stateSubscription = Game::onStateChange.Subscribe([&score](Game::State state)
             {
-            case Game::MENU:
-                mainMenu->update();
-                mainMenu->draw();
-                break;
-            case Game::GAME:
-                score->draw();
-                healthBar->draw();
-                break;
-            case Game::GAME_OVER:
-                gameOverMenu->update();
-                gameOverMenu->draw();
-                break;
-            default:
-                break;
+                Player::main->isControllable = state == Game::GAME;
+                Game::showCursor(state != Game::GAME);
+                if (state == Game::GAME)
+                {
+                    Player::main->health = Config::PLAYER_HEALTH;
+                    Enemy::create(1);
+                    score.reset();
+                }
+                else if (state == Game::GAME_OVER) Enemy::killInstances();
+            });
+            const auto enemySubscription = Enemy::onDestroy.Subscribe([](Enemy*)
+            {
+                if (Game::getState() == Game::GAME) Enemy::create(2);
+            });
+            const auto playerSubscription = Player::main->onDestroy.Subscribe([] { Game::setState(Game::GAME_OVER); });
+            Star::create(Config::STAR_COUNT);
+            Potato::create(Config::POTATO_COUNT);
+
+            while (Game::window->isOpen())
+            {
+                Game::beginFrame();
+                Game::handleEvents();
+                if (!Game::window->isOpen()) break;
+                Graphics::updateBehaviours();
+                Explosion::update(Game::deltaTime);
+                Log::update(Game::deltaTime);
+                Game::window->clear();
+                Star::draw();
+                Graphics::draw();
+                weapons.draw();
+                switch (Game::getState())
+                {
+                case Game::MENU: mainMenu.update(); mainMenu.draw(); break;
+                case Game::GAME: score.draw(); healthBar.draw(); break;
+                case Game::GAME_OVER: gameOverMenu.update(); gameOverMenu.draw(); break;
+                }
+                Log::draw();
+                Game::window->display();
             }
-
-            Log::draw();
-
-            Game::window->display();
-        }
-        catch (const std::runtime_error& e) {
-            std::cout << e.what() << std::endl;
+            Game::onStateChange.Unsubscribe(stateSubscription);
+            Enemy::onDestroy.Unsubscribe(enemySubscription);
+            Player::main->onDestroy.Unsubscribe(playerSubscription);
         }
     }
+    catch (const std::exception& error)
+    {
+        std::cerr << error.what() << '\n';
+        result = 1;
+    }
+    // Disconnect observers before deleting their subjects, including exceptional shutdown.
+    Game::onStateChange.Clear();
+    Enemy::onDestroy.Clear();
+    Player::onShoot.Clear();
+    Explosion::shutdown();
+    Graphics::shutdown();
+    Star::shutdown();
+    Log::clear();
+    Game::shutdown();
+    return result;
 }

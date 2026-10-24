@@ -1,10 +1,9 @@
 #include "PlayerBullet.h"
-#include "Log.h"
 #include "Enemy.h"
 
 bool PlayerBullet::isActiveCollider()
 {
-	return true;
+	return Bullet::isActiveCollider();
 }
 
 void PlayerBullet::onOverlap(Graphics* other)

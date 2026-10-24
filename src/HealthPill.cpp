@@ -1,5 +1,6 @@
+#include "Game.h"
 #include "HealthPill.h"
-#include "config.h"
+#include "Config.h"
 
 HealthPill::HealthPill()
 {
@@ -8,7 +9,7 @@ HealthPill::HealthPill()
 
 void HealthPill::update()
 {
-	rotation += rotationSpeed * Config::DELTA_TIME;
+	rotation += rotationSpeed * Game::deltaTime;
 }
 
 bool HealthPill::isActiveCollider()

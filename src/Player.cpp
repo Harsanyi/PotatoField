@@ -1,261 +1,131 @@
-#pragma once
 #include "Player.h"
-#include "SFML/Graphics.hpp"
-#include "cmath"
-#include "Config.h"
-#include "glm/vec3.hpp"
-#include "glm/glm.hpp"
-#include "Bullet.h"
-#include <iostream>
-#include "Log.h"
-#include "chrono"
-#include "PlayerBullet.h"
-#include "SFML/Audio.hpp"
-#include "iostream"
-#include "fstream"
-#include "Random.h"
-#include "thread"
+#include "Assets.h"
+#include "Game.h"
 #include "HealthPill.h"
-
-using namespace std::chrono;
+#include "PlayerBullet.h"
+#include "Random.h"
+#include "Utils.h"
+#include "WorldMath.h"
+#include <algorithm>
+#include <stdexcept>
 
 Player* Player::main = nullptr;
-const glm::vec3 LEFT_OFFSET(-60,50,50);
-const glm::vec3 RIGHT_OFFSET(60,50,50);
-
 Event<Player::ShootSide> Player::onShoot;
+namespace
+{
+    const glm::vec3 leftOffset{-60, 50, 50};
+    const glm::vec3 rightOffset{60, 50, 50};
+}
 
 Player::Player()
 {
-	main = this;
-	this->size = 100;
-	name = "Player";
-	position = { Config::HALF_FIELD_SIZE,Config::HALF_FIELD_SIZE,Config::HALF_FIELD_SIZE };
+    size = 100;
+    name = "Player";
+    position = glm::vec3(Config::HALF_FIELD_SIZE);
+    shotBuffers.resize(5);
+    for (std::size_t i = 0; i < shotBuffers.size(); ++i)
+        if (!shotBuffers[i].loadFromFile(Assets::file("audio/shot" + std::to_string(i + 1) + ".wav")))
+            throw std::runtime_error("Cannot load shot sound");
+    if (!damageBuffer.loadFromFile(Assets::file("audio/got_damage.wav")) ||
+        !healBuffer.loadFromFile(Assets::file("audio/pickup.wav")))
+        throw std::runtime_error("Cannot load player damage/pickup sound");
+    leftShotSound.setRelativeToListener(true);
+    leftShotSound.setPosition(-0.8f, -0.1f, 0.1f);
+    rightShotSound.setRelativeToListener(true);
+    rightShotSound.setPosition(0.8f, -0.1f, 0.1f);
+    damageSound.setBuffer(damageBuffer);
+    healSound.setBuffer(healBuffer);
+    main = this;
+}
 
-	sf::SoundBuffer* buffer = new sf::SoundBuffer();
-	buffer->loadFromFile("audio/shot1.wav");
-	shotBuffers.emplace_back(*buffer);
-
-	buffer = new sf::SoundBuffer();
-	buffer->loadFromFile("audio/shot2.wav");
-	shotBuffers.emplace_back(*buffer);
-
-	buffer = new sf::SoundBuffer();
-	buffer->loadFromFile("audio/shot3.wav");
-	shotBuffers.emplace_back(*buffer);
-
-	buffer = new sf::SoundBuffer();
-	buffer->loadFromFile("audio/shot4.wav");
-	shotBuffers.emplace_back(*buffer);
-
-	buffer = new sf::SoundBuffer();
-	buffer->loadFromFile("audio/shot5.wav");
-	shotBuffers.emplace_back(*buffer);
-
-	leftShotSound.setRelativeToListener(true);
-	leftShotSound.setPosition(sf::Vector3f(-0.8, -0.1, 0.1));
-	rightShotSound.setRelativeToListener(true);
-	rightShotSound.setPosition(sf::Vector3f(0.8, -0.1, 0.1));
-
-	damageBuffer.loadFromFile("audio/got_damage.wav");
-	damageSound.setBuffer(damageBuffer);
-
-	healBuffer.loadFromFile("audio/pickup.wav");
-	healSound.setBuffer(healBuffer);
+Player::~Player()
+{
+    if (main == this) main = nullptr;
 }
 
 void Player::update()
 {
-	handleInput();
-	move(velocity * Config::DELTA_TIME);
+    shootCooldown = std::max(0.0f, shootCooldown - Game::deltaTime);
+    handleInput();
+    move(velocity * Game::deltaTime);
+    shakeRemaining = std::max(0.0f, shakeRemaining - Game::deltaTime);
+    if (shakeRemaining > 0)
+    {
+        const float amplitude = 25.0f * shakeRemaining / 0.4f;
+        shakeOffset = {Random::getDouble(-amplitude, amplitude), Random::getDouble(-amplitude, amplitude),
+                       Random::getDouble(-amplitude, amplitude)};
+    }
+    else shakeOffset = glm::vec3(0);
 }
 
-void Player::move(glm::vec3 amount)
+void Player::move(glm::vec3 amount) { position += amount; }
+void Player::rotate(glm::vec3 angles) { rotation = glm::normalize(rotation * glm::quat(angles)); }
+void Player::shake() { shakeRemaining = 0.4f; }
+
+glm::vec3 Player::worldToLocalPosition(const glm::vec3& world) const
 {
-	this->position += amount;
+    return cameraLocalPosition(world, position, rotation) - shakeOffset;
 }
-
-void Player::rotate(glm::vec3 eulerAngles)
+glm::vec3 Player::localToScreenPosition(const glm::vec3& local) const { return projectToScreen(local); }
+glm::vec3 Player::worldToScreenPosition(const glm::vec3& world) const
 {
-	rotation = this->rotation * glm::quat(eulerAngles);
-}
-
-void Player::shake()
-{
-	std::thread thread([&]() {
-		time_point start = steady_clock::now();
-		int elapsed = 0;
-		const int shakeTime = 400;
-		const int minSleep = 1;
-		const int maxSleep = 25;
-		const int maxOffset = 50;
-		while (this && elapsed < shakeTime) {
-			this->position += glm::vec3(
-				Random::getDouble(-maxOffset,maxOffset),
-				Random::getDouble(-maxOffset, maxOffset),
-				Random::getDouble(-maxOffset, maxOffset)
-			);
-		
-			std::this_thread::sleep_for(milliseconds((long)Random::getDouble(minSleep,maxSleep)));
-		
-			elapsed = duration_cast<milliseconds>(steady_clock::now() - start).count();
-		}
-		});
-	thread.detach();
-}
-
-glm::vec3 Player::world2LocalPos(const glm::vec3& worldPos)
-{
-	glm::vec3 localPos;
-	glm::vec3 camPos;
-
-	camPos = this->position;
-	camPos = {
-		fmod(this->position.x, Config::FIELD_SIZE),
-		fmod(this->position.y, Config::FIELD_SIZE),
-		fmod(this->position.z, Config::FIELD_SIZE)
-	};
-	if (camPos.x < 0)camPos.x += Config::FIELD_SIZE;
-	if (camPos.y < 0)camPos.y += Config::FIELD_SIZE;
-	if (camPos.z < 0)camPos.z += Config::FIELD_SIZE;
-
-	localPos = worldPos - camPos;
-
-	if (localPos.x < -Config::HALF_FIELD_SIZE)localPos.x += Config::FIELD_SIZE;
-	if (localPos.x > Config::HALF_FIELD_SIZE)localPos.x -= Config::FIELD_SIZE;
-	if (localPos.y < -Config::HALF_FIELD_SIZE)localPos.y += Config::FIELD_SIZE;
-	if (localPos.y > Config::HALF_FIELD_SIZE)localPos.y -= Config::FIELD_SIZE;
-	if (localPos.z < -Config::HALF_FIELD_SIZE)localPos.z += Config::FIELD_SIZE;
-	if (localPos.z > Config::HALF_FIELD_SIZE)localPos.z -= Config::FIELD_SIZE;
-
-	localPos = glm::inverse(this->rotation) * localPos;
-
-	return localPos;
-}
-
-glm::vec3 Player::local2ScreenPos(const glm::vec3& locPos)
-{	
-	float depth = locPos.z;
-	if (depth < 1) {
-		depth = 1;
-	}
-
-	float fovRad = Config::CAMERA_H_FOV * (3.141592654 / 180.);
-	float scale = 1. / std::tanf(fovRad / 2.) * depth;
-
-	float x = locPos.x / scale * 0.5 * Config::SCREEN_WIDTH;
-	float y = locPos.y / scale * 0.5 * Config::SCREEN_HEIGHT;
-
-	return glm::vec3(x, y, scale);
-}
-
-glm::vec3 Player::world2ScreenPos(const glm::vec3& worldPos)
-{
-	return local2ScreenPos(world2LocalPos(worldPos));
+    return localToScreenPosition(worldToLocalPosition(world));
 }
 
 void Player::onOverlap(Graphics* other)
 {
-	if (dynamic_cast<PlayerBullet*>(other)) {
-		return;
-	}
-
-	if (dynamic_cast<Bullet*>(other)) {
-		damageSound.play();
-		shake();
-
-		if (!Config::PLAYER_INVINCIBLE) {
-			health--;
-		}
-		std::cout << "Player Health: " << health << std::endl;
-		if (health <= 0) {
-			onDestroy.Invoke();			
-		}
-		return;
-	}
-
-	if (dynamic_cast<HealthPill*>(other)) {
-		health++;
-		healSound.play();
-		other->Destroy();
-
-		return;
-	}
-}
-
-bool Player::canShoot()
-{
-	return duration_cast<milliseconds>(steady_clock::now()-shootTime).count() >= Config::PLAYER_SHOOTRATE * 1000;
+    if (Game::getState() != Game::GAME || health <= 0 || dynamic_cast<PlayerBullet*>(other)) return;
+    if (dynamic_cast<Bullet*>(other))
+    {
+        damageSound.play();
+        shake();
+        if (!Config::PLAYER_INVINCIBLE) --health;
+        if (health <= 0) onDestroy.Invoke();
+    }
+    else if (dynamic_cast<HealthPill*>(other))
+    {
+        ++health;
+        healSound.play();
+        other->Destroy();
+    }
 }
 
 void Player::handleInput()
 {
-	if (!isControllable)return;
-
-	sf::Vector2i screenCenter = sf::Vector2i(Config::SCREEN_WIDTH, Config::SCREEN_HEIGHT) / 2;
-	sf::Vector2i deltaMousePos = sf::Mouse::getPosition() - screenCenter;
-	sf::Mouse::setPosition(screenCenter);
-
-	float rotateSpeed = Config::DELTA_TIME * Config::CAMERA_ROTATION_SPEED;
-	rotate(glm::vec3(-deltaMousePos.y * rotateSpeed * Config::DELTA_TIME, deltaMousePos.x * rotateSpeed * Config::DELTA_TIME, 0.));
-
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-		velocity += rotation * glm::vec3(0, 0, Config::CAMERA_MOVE_SPEED * Config::DELTA_TIME);
-	}
-
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-		velocity += rotation * glm::vec3(0, 0, -Config::CAMERA_MOVE_SPEED * Config::DELTA_TIME);
-	}
-
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-		velocity += rotation * glm::vec3(-Config::CAMERA_MOVE_SPEED * Config::DELTA_TIME, 0, 0);
-	}
-	
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-		velocity += rotation * glm::vec3(Config::CAMERA_MOVE_SPEED * Config::DELTA_TIME, 0, 0);
-	}
-	
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::E)) {
-		velocity += rotation * glm::vec3(0, -Config::CAMERA_MOVE_SPEED * Config::DELTA_TIME, 0);
-	}
-	
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q)) {
-		velocity += rotation * glm::vec3(0, Config::CAMERA_MOVE_SPEED * Config::DELTA_TIME, 0);
-	}
-
-	if (isLastShoot != sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-		isLastShoot = !isLastShoot;
-		if (isLastShoot && canShoot()) {
-			shoot();
-		}
-	}
-
-	float speed = glm::length(velocity);
-	if (speed > Config::CAMERA_MOVE_SPEED) {
-		velocity /= speed / Config::CAMERA_MOVE_SPEED;
-	}
+    if (!isControllable || !Game::window->hasFocus()) return;
+    const sf::Vector2i center{Config::SCREEN_WIDTH / 2, Config::SCREEN_HEIGHT / 2};
+    const auto mouse = sf::Mouse::getPosition(*Game::window) - center;
+    sf::Mouse::setPosition(center, *Game::window);
+    // Mouse delta is already per-frame displacement: keep pixel sensitivity independent of frame duration.
+    rotate({-mouse.y * Config::MOUSE_SENSITIVITY, mouse.x * Config::MOUSE_SENSITIVITY, 0});
+    glm::vec3 input{0};
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) input.z += 1;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) input.z -= 1;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) input.x -= 1;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) input.x += 1;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::E)) input.y -= 1;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q)) input.y += 1;
+    velocity += rotation * input * Config::CAMERA_MOVE_SPEED * Game::deltaTime;
+    const float speed = glm::length(velocity);
+    if (speed > Config::CAMERA_MOVE_SPEED) velocity *= Config::CAMERA_MOVE_SPEED / speed;
+    const bool pressed = sf::Mouse::isButtonPressed(sf::Mouse::Left);
+    if (pressed && !wasShootPressed) tryShoot();
+    wasShootPressed = pressed;
 }
 
-void Player::shoot()
+bool Player::tryShoot()
 {
-	shootTime = steady_clock::now();
-
-	PlayerBullet* bullet = new PlayerBullet();
-	bullet->position = this->position + (this->rotation * (leftShoot ? LEFT_OFFSET : RIGHT_OFFSET));
-	bullet->size = Config::BULLET_SIZE;
-	bullet->velocity = rotation * glm::vec3(0.,0.,1.) * Config::BULLET_SPEED + this->velocity;
-
-	if (leftShoot) {
-		leftShotSound.setBuffer(getRandom(shotBuffers));
-		leftShotSound.setPitch(Random::getDouble(0.7, 1));
-		leftShotSound.play();
-	}
-	else {
-		rightShotSound.setBuffer(getRandom(shotBuffers));
-		rightShotSound.setPitch(Random::getDouble(0.7, 1));
-		rightShotSound.play();
-	}
-
-	onShoot.Invoke(leftShoot ? Player::LEFT : Player::RIGHT);
-	leftShoot = !leftShoot;
+    if (Game::getState() != Game::GAME || health <= 0 || shootCooldown > 0) return false;
+    shootCooldown = Config::PLAYER_SHOOTRATE;
+    auto* bullet = new PlayerBullet();
+    bullet->position = position + rotation * (leftShoot ? leftOffset : rightOffset);
+    bullet->size = Config::BULLET_SIZE;
+    bullet->velocity = rotation * glm::vec3(0, 0, Config::BULLET_SPEED) + velocity;
+    auto& sound = leftShoot ? leftShotSound : rightShotSound;
+    sound.setBuffer(getRandom(shotBuffers));
+    sound.setPitch(static_cast<float>(Random::getDouble(0.7, 1)));
+    sound.play();
+    onShoot.Invoke(leftShoot ? LEFT : RIGHT);
+    leftShoot = !leftShoot;
+    return true;
 }

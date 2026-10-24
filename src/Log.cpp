@@ -1,49 +1,36 @@
 #include "Log.h"
-#include <iostream>
-#include "config.h"
+#include "Config.h"
 #include "Game.h"
+#include <algorithm>
+#include <iostream>
 
-bool Log::inited = false;
-sf::Text Log::text{};
-std::vector<Log::Data*> Log::logDatas{};
+sf::Text Log::text;
+std::vector<Log::Data> Log::entries;
 
-Log::Log()
-{    
-    
+void Log::update(float deltaTime)
+{
+    entries.erase(std::remove_if(entries.begin(), entries.end(), [deltaTime](Data& entry)
+    {
+        if (entry.remaining < 0) return false;
+        entry.remaining -= deltaTime;
+        return entry.remaining <= 0;
+    }), entries.end());
 }
-
-void Log::init()
+void Log::draw()
 {
     text.setFont(*Game::font);
     text.setCharacterSize(Config::LOG_FONT_SIZE);
     text.setFillColor(sf::Color::White);
-    inited = true;
-
-    log("Log is inited", 1);
-}
-
-void Log::draw()
-{
-    if (!inited) {
-        init();
-    }
-
-    for (int i = logDatas.size()-1; i > -1; i--) {
-        text.setString(logDatas[i]->text);
-        text.setPosition(sf::Vector2f(0,i*Config::LOG_FONT_SIZE));
+    for (std::size_t i = 0; i < entries.size(); ++i)
+    {
+        text.setString(entries[i].text);
+        text.setPosition(0, static_cast<float>(i * Config::LOG_FONT_SIZE));
         Game::window->draw(text);
-
-        logDatas[i]->lifeTime--;
-
-        if (logDatas[i]->lifeTime == 0) {
-            logDatas.erase(logDatas.begin());
-        }
     }
 }
-
-void Log::log(const char* text, float time)
+void Log::log(const char* message, float seconds)
 {
-    Data* data = new Data(text,time);
-    logDatas.push_back(data);
-    std::cout << text << std::endl;
+    entries.push_back({message, seconds > 0 ? seconds : -1});
+    std::cout << message << '\n';
 }
+void Log::clear() { entries.clear(); text = sf::Text{}; }

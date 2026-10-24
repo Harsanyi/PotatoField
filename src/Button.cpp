@@ -1,4 +1,6 @@
 #include "Button.h"
+#include "Assets.h"
+#include <stdexcept>
 #include "Game.h"
 #include <iostream>
 #include "Log.h"
@@ -22,8 +24,9 @@ Button::Button()
 	updatePositions();
 	setColor(color);
 
-	hoverBuffer.loadFromFile("audio/hover.wav");
-	clickBuffer.loadFromFile("audio/click.wav");
+	if (!hoverBuffer.loadFromFile(Assets::file("audio/hover.wav")) ||
+	    !clickBuffer.loadFromFile(Assets::file("audio/click.wav")))
+	    throw std::runtime_error("Cannot load UI sound");
 	hoverSound.setBuffer(hoverBuffer);
 	clickSound.setBuffer(clickBuffer);
 }
@@ -51,10 +54,10 @@ void Button::update()
 		}
 	}
 	buttonDown = sf::Mouse::isButtonPressed(sf::Mouse::Left);
-	label.setColor(color);
+	label.setFillColor(color);
 
 	if (mouseHere && lastButtonDown && !buttonDown) {
-		label.setColor(sf::Color::Red);
+		label.setFillColor(sf::Color::Red);
 		clickSound.play();
 		onClick.Invoke();
 	}
@@ -80,7 +83,7 @@ void Button::setText(const std::string& text)
 void Button::setColor(const sf::Color& color)
 {
 	this->color = color;
-	label.setColor(color);
+	label.setFillColor(color);
 	for (int i = 0; i < border.getVertexCount(); i++) {
 		border[i].color = color;
 	}

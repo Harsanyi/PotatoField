@@ -1,6 +1,6 @@
 #pragma once
-#include "glm/glm.hpp"
-#include "graphics.h"
+#include <glm/glm.hpp>
+#include "Graphics.h"
 #include "Bullet.h"
 
 class Potato : public Graphics
@@ -21,4 +21,3 @@ public:
 
 	static void create(const int& count);
 };
-

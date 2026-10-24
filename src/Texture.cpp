@@ -1,18 +1,10 @@
 #include "Texture.h"
-#include "SFML/Graphics.hpp"
-#include "Log.h"
-#include "Utils.h"
+#include <stdexcept>
 
 Texture::Texture(const std::string& fileName)
 {
-	if (!loadFromFile(fileName)) {
-		Log::log(asString("Error, file not found:",fileName).c_str());
-	}
-	generateMipmap();
-	setSmooth(true);
+    if (!loadFromFile(fileName)) throw std::runtime_error("Cannot load texture: " + fileName);
+    generateMipmap();
+    setSmooth(true);
 }
-
-Texture::Texture() {
-	generateMipmap();
-	setSmooth(true);
-}
+Texture::Texture() = default;

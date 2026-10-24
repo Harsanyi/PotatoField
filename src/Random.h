@@ -1,6 +1,7 @@
 #pragma once
 
-#include "random"
+#include <random>
+#include <cstddef>
 
 class Random
 {
@@ -14,5 +15,5 @@ public:
 	static double getDouble();
 	static double getDouble(double min, double max);
 	static int getInt(int min, int max);
+	static std::size_t getIndex(std::size_t count);
 };
-

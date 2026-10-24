@@ -1,6 +1,6 @@
 #include "Label.h"
 #include "Game.h"
-#include "SFML/Graphics.hpp"
+#include <SFML/Graphics.hpp>
 
 void Label::recalculateOrigin()
 {

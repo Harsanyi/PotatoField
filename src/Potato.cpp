@@ -1,5 +1,6 @@
+#include "Game.h"
 #include "Potato.h"
-#include "config.h"
+#include "Config.h"
 #include "Random.h"
 
 Potato::Potato() {
@@ -20,9 +21,9 @@ Potato::Potato() {
 
 void Potato::update()
 {
-	rotation += angularVelocity * Config::DELTA_TIME;
+	rotation += angularVelocity * Game::deltaTime;
 	rotation = fmod(rotation, 360.);
-	position += velocity * Config::DELTA_TIME;
+	position += velocity * Game::deltaTime;
 }
 
 void Potato::create(const int& count)

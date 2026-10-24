@@ -1,5 +1,5 @@
 #pragma once
-#include "SFML/Graphics.hpp"
+#include <SFML/Graphics.hpp>
 
 class Label : public sf::Text
 {
@@ -10,7 +10,7 @@ class Label : public sf::Text
 	void resetStyle();
 
 public:
-	
+
 	Label();
 
 	void draw();
@@ -20,4 +20,3 @@ public:
 	void setPosition(const sf::Vector2f screenPos);
 	void setBold(bool bold);
 };
-

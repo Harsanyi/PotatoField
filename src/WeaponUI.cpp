@@ -1,55 +1,28 @@
 #include "WeaponUI.h"
 #include "Game.h"
-#include "chrono"
 #include "Utils.h"
-#include "Player.h"
-#include <Log.h>
-
-using namespace std::chrono;
+#include <algorithm>
 
 WeaponUI::WeaponUI()
 {
-	sprite = new Sprite("img/weapon.png");
-	sprite->setOriginNormal(sf::Vector2f(0,1));
-	sprite->setRotation(3);
-	sprite->setScale({0.7,0.7});
-
-	lastShoot = steady_clock::now();
-	lastShoot -= seconds((int)(kickTime + releaseTime + 1));
+    sprite.setOriginNormal({0, 1});
+    sprite.setRotation(3);
+    sprite.setScale({0.7f, 0.7f});
 }
-
-WeaponUI::~WeaponUI()
-{
-	delete(sprite);
-}
-
 void WeaponUI::draw()
 {
-	sf::Vector2f pos;
-	float elapsed = duration_cast<milliseconds>(steady_clock::now()-lastShoot).count()/1000.;
-	if (elapsed >= (kickTime + releaseTime)) {
-		pos = position;
-	}
-	else if (elapsed <= kickTime) {
-		pos = lerp(position, kickPosition, smoothstep(elapsed / kickTime));
-	}
-	else {
-		pos = lerp(kickPosition, position, smoothstep((elapsed-kickTime) / releaseTime));
-	}
-
-	sprite->setPosition(pos);
-	Game::window->draw(*sprite);
+    sinceShot = std::min(kickTime + releaseTime, sinceShot + Game::deltaTime);
+    sf::Vector2f pos;
+    if (sinceShot >= kickTime + releaseTime) pos = position;
+    else if (sinceShot <= kickTime) pos = lerp(position, kickPosition, smoothstep(sinceShot / kickTime));
+    else pos = lerp(kickPosition, position, smoothstep((sinceShot - kickTime) / releaseTime));
+    sprite.setPosition(pos);
+    Game::window->draw(sprite);
 }
-
-void WeaponUI::shoot()
-{
-	lastShoot = steady_clock::now();
-}
-
+void WeaponUI::shoot() { sinceShot = 0; }
 void WeaponUI::flipHorizontal()
 {
-	sf::Vector2f scale = sprite->getScale();
-	scale.x *= -1;
-	sprite->setScale(scale);
-	sprite->setRotation(sprite->getRotation()*-1.);
+    const auto scale = sprite.getScale();
+    sprite.setScale(-scale.x, scale.y);
+    sprite.setRotation(-sprite.getRotation());
 }

@@ -11,4 +11,3 @@ public:
 	bool isActiveCollider() override;
 	void onOverlap(Graphics* other) override;
 };
-
